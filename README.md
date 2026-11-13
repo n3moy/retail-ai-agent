@@ -4,19 +4,17 @@ Ask a retail sales question in the terminal. Gemini queries the public theLook e
 
 ## How the prototype handles a question
 
+Questions and `/report` go straight to one ReAct agent. On the first model call, Gemini can answer from the visible schema, ask for clarification or call a tool.
+
 ```mermaid
 flowchart TD
-    Q["CLI question"] --> P["Redact personal data locally"]
-    P --> I{"Gemini classifies the request"}
-    I -->|UNRELATED| R["Reply in the CLI"]
-    I -->|SCHEMA| S["Gemini answers from the visible schema"]
-    S --> R
-    I -->|ANALYSIS or REPORT| A["Gemini chooses a tool or answers"]
+    Q["CLI question or /report"] --> P["Redact personal data locally"]
+    P --> A["ReAct agent · Gemini"]
     A -->|SQL| B["SafeSql enforces brand access<br/>BigQuery dry-runs and executes"]
     B -->|Masked rows or query error| A
     A -->|Report action| T["Local report tools"]
     T -->|Tool result| A
-    A -->|Final answer| R
+    A -->|Final answer| R["Reply in the CLI"]
 ```
 
 ## Production architecture
@@ -85,7 +83,7 @@ uv run --locked python -m evals.live --pause-seconds 12
 
 `python -m evals.live` runs the project's live evaluation module. The optional `--pause-seconds 12` waits 12 seconds between scenarios to reduce the chance of hitting Gemini's request limit. Omit the flag for the default pause of 0 seconds.
 
-The terminal prints Gemini's revenue and order-count answers, the failed checks and the final tally. The recorded run scored **15/16 passed, 1 failed, 0 skipped**. Gemini answered **$359.54 across 5 orders** for January 2024. In `self-correction`, BigQuery returned the correct amount, but the final reply timed out. [Recorded run](evals/results/live.json)
+The terminal prints Gemini's revenue and order-count answers, the failed checks and the final tally. A run recorded before the switch to direct ReAct calls scored **15/16 passed, 1 failed, 0 skipped**. Gemini answered **$359.54 across 5 orders** for January 2024. In `self-correction`, BigQuery returned the correct amount, but the final reply timed out. [Recorded run](evals/results/live.json)
 
 Open `.retail-agent/eval-live.json` after the run.
 
@@ -104,7 +102,7 @@ The CLI uses Presidio locally to redact personal data. Its recognizers can miss 
 
 ### Saved reports
 
-You can also ask for a report in plain language. A model call classifies the request before analytical tools run. The CLI declines off-topic requests and applies a 30-second deadline for questions or 120 seconds for reports. SQL corrections and model retries share the turn's budget.
+`/report` starts with a 120-second deadline. You can also ask Gemini to create a report in plain language. When Gemini marks a SQL query for that report, the deadline extends from the usual 30 seconds to 120 seconds, measured from the start of the request. SQL corrections and model retries share the same budget.
 
 Ask “Delete reports mentioning Client X” or use `/delete-conversation` to preview matching reports. Use `/select <action ID>` to see your available reports. To remove or add reports, append the complete list of IDs you want to delete. Review the updated selection and use `/confirm <current action ID>` or `/cancel <current action ID>`. History and pending confirmations last for the current process. After a restart, request a fresh preview.
 

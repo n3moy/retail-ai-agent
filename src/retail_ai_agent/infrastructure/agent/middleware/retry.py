@@ -59,8 +59,6 @@ class BudgetedModelRetry(ModelRetryMiddleware):
         context = request.runtime.context
         if context.stopped:
             raise context.stopped
-        # Classification and generation can share a graph node, but each has
-        # its own retry loop. Both still consume the same turn budget.
         context.model_attempt = 0
         return super().wrap_model_call(request, handler)
 

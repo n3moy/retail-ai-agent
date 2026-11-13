@@ -7,7 +7,6 @@ from retail_ai_agent.application.progress import observe_progress
 
 _LABELS = {
     "model": "Preparing answer",
-    "classify": "Checking the request",
     "retry": "Retrying the model",
     "backoff": "Waiting before retrying the model",
     "sql_db_query": "Checking SQL and access",

@@ -72,10 +72,7 @@ class ModelBudgetMiddleware(AgentMiddleware[AgentState, RunContext]):
         context = request.runtime.context
         budget = context.budget
         budget.check_model_call()
-        if context.model_attempt:
-            progress("retry")
-        else:
-            progress("model" if context.intent else "classify")
+        progress("retry" if context.model_attempt else "model")
         prompt = None
         if self.gemini:
             assert self.config.google_ai_studio_api_key is not None

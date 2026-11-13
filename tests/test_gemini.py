@@ -91,7 +91,6 @@ class GeminiAdapterTests(unittest.TestCase):
         sanitizer = LocalSanitizer(brands=("Calvin Klein",))
         responses = iter(
             [
-                response(types.Part(text='{"intent":"ANALYSIS"}')),
                 response(
                     types.Part(
                         function_call=types.FunctionCall(
@@ -121,7 +120,6 @@ class GeminiAdapterTests(unittest.TestCase):
                     )
                 ),
                 response(types.Part(text=f"Sales: 10. Card {card}")),
-                response(types.Part(text='{"intent":"ANALYSIS"}')),
                 response(types.Part(text="Done.")),
             ]
         )
@@ -172,7 +170,7 @@ class GeminiAdapterTests(unittest.TestCase):
                 result = chat.ask(ChatRequest(question, "chat", action="report"))
                 self.assertEqual(result.status, "complete", result.answer)
                 self.assertTrue(result.report_id, result.answer)
-                self.assertEqual(len(generations), 5)
+                self.assertEqual(len(generations), 4)
                 followup = chat.ask(ChatRequest("Thanks", "chat"))
                 self.assertEqual(followup.answer, "Done.")
             events = [json.loads(line) for line in trace.path.read_text().splitlines()]
@@ -180,18 +178,18 @@ class GeminiAdapterTests(unittest.TestCase):
             config_key = runner._graph_config("chat")
             checkpoints = [str(s.values) for s in graph.get_state_history(config_key)]
             metered = [e for e in events if e["event"] == "model_usage"]
-            self.assertEqual(len(metered), 7)
+            self.assertEqual(len(metered), 5)
             for event in metered:
                 self.assertEqual(event["input_tokens"], 20)
                 self.assertEqual(event["cached_input_tokens"], 8)
                 self.assertEqual(event["output_tokens"], 15)
                 self.assertEqual(event["cost_usd"], 0.00004134)
             runs = [e for e in events if e["event"] == "run_finished"]
-            self.assertAlmostEqual(runs[0]["model_usd"], 5 * 0.00004134)
+            self.assertAlmostEqual(runs[0]["model_usd"], 4 * 0.00004134)
             self.assertEqual(runs[0]["unresolved_reserve_usd"], 0)
 
-        self.assertEqual(len(counts), 7)
-        self.assertEqual(len(generations), 7)
+        self.assertEqual(len(counts), 5)
+        self.assertEqual(len(generations), 5)
         for i, (count, generated) in enumerate(zip(counts, generations, strict=True)):
             with self.subTest(call=i):
                 for field in ("contents", "tools", "systemInstruction"):
@@ -217,7 +215,7 @@ class GeminiAdapterTests(unittest.TestCase):
         self.assertIn("[REDACTED_EMAIL]", history[0]["parts"][0]["text"])
         self.assertIn(masked_reply, history[1]["parts"][0]["text"])
         self.assertIn("[REDACTED_EMAIL]", generations[0]["contents"][0]["parts"][0]["text"])
-        parts = [p for m in generations[4]["contents"] for p in m["parts"]]
+        parts = [p for m in generations[3]["contents"] for p in m["parts"]]
         calls = {p["functionCall"]["name"]: p["functionCall"] for p in parts if "functionCall" in p}
         results = {
             p["functionResponse"]["name"]: p["functionResponse"]["response"]
@@ -233,7 +231,7 @@ class GeminiAdapterTests(unittest.TestCase):
         self.assertIn(
             b64encode(b"test-signature").decode(), [p.get("thoughtSignature") for p in parts]
         )
-        declarations = [f for t in generations[1]["tools"] for f in t["functionDeclarations"]]
+        declarations = [f for t in generations[0]["tools"] for f in t["functionDeclarations"]]
         self.assertEqual(
             {f["name"] for f in declarations},
             {

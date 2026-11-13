@@ -167,10 +167,12 @@ class OpenRouterAdapterTests(unittest.TestCase):
 
     def test_startup_sql_report_usage_and_cleanup_through_actual_sdk(self):
         self.responses = [
-            completion('{"intent":"REPORT"}'),
             completion(
                 tool="sql_db_query",
-                arguments={"query": "SELECT SUM(sale_price) AS total FROM order_items"},
+                arguments={
+                    "query": "SELECT SUM(sale_price) AS total FROM order_items",
+                    "for_report": True,
+                },
             ),
             completion(tool="save_report", arguments={"body": "Sales: 10"}),
             completion("Sales: 10"),
@@ -185,16 +187,15 @@ class OpenRouterAdapterTests(unittest.TestCase):
             )
         self.assertEqual(result.status, "complete", result.answer)
         self.assertTrue(result.report_id, result.answer)
-        self.assertEqual(len(self.requests), 4)
+        self.assertEqual(len(self.requests), 3)
         self.assert_closed(model)
         self.bigquery.close.assert_called_once()
         payloads = [json.loads(request.content) for request in self.requests]
         self.assertNotIn("private@example.com", json.dumps(payloads))
-        self.assertFalse(payloads[0].get("tools"))
-        for request, payload in zip(self.requests[1:], payloads[1:], strict=True):
+        for request, payload in zip(self.requests, payloads, strict=True):
             self.assertEqual(str(request.url), "https://openrouter.ai/api/v1/chat/completions")
             self.assertEqual(request.headers["authorization"], "Bearer unit-test-openrouter")
-            self.assertEqual(payload["tools"], payloads[1]["tools"])
+            self.assertEqual(payload["tools"], payloads[0]["tools"])
             self.assertEqual(payload["model"], self.config.openrouter_model)
             self.assertNotIn("max_retries", payload)
             self.assertEqual(
@@ -204,8 +205,10 @@ class OpenRouterAdapterTests(unittest.TestCase):
             for seconds in request.extensions["timeout"].values():
                 self.assertGreater(seconds, 0)
                 self.assertLessEqual(seconds, self.config.model_timeout_seconds)
-        functions = {t["function"]["name"]: t["function"] for t in payloads[1]["tools"]}
-        self.assertEqual(set(functions["sql_db_query"]["parameters"]["properties"]), {"query"})
+        functions = {t["function"]["name"]: t["function"] for t in payloads[0]["tools"]}
+        self.assertEqual(
+            set(functions["sql_db_query"]["parameters"]["properties"]), {"query", "for_report"}
+        )
         self.assertEqual(set(functions["write_todos"]["parameters"]["properties"]), {"todos"})
         self.assertEqual(
             set(functions),
@@ -218,7 +221,7 @@ class OpenRouterAdapterTests(unittest.TestCase):
                 "delete_reports",
             },
         )
-        self.assertNotIn("runtime", str(payloads[1]["tools"]))
+        self.assertNotIn("runtime", str(payloads[0]["tools"]))
         self.assertTrue(
             any(
                 m["role"] == "tool" and m["tool_call_id"] == "call_sql_db_query"
@@ -228,7 +231,7 @@ class OpenRouterAdapterTests(unittest.TestCase):
         self.assertEqual(self.events("run_started")[0]["model"], self.config.openrouter_model)
         self.assertEqual(self.events("run_started")[0]["provider"], "openrouter")
         self.assertEqual(self.events("model_response")[0]["usage"]["total_tokens"], 30)
-        self.assertAlmostEqual(self.events("run_finished")[0]["estimated_usd"], 0.0024)
+        self.assertAlmostEqual(self.events("run_finished")[0]["estimated_usd"], 0.0018)
 
     def test_transient_errors_are_retried_by_budgeted_middleware_without_sdk_retries(self):
         for failure in (
@@ -241,7 +244,6 @@ class OpenRouterAdapterTests(unittest.TestCase):
                 self.requests.clear()
                 self.responses = [
                     failure,
-                    completion('{"intent":"ANALYSIS"}'),
                     completion(tool="list_reports", arguments={}),
                     completion("No reports found."),
                 ]
@@ -252,9 +254,9 @@ class OpenRouterAdapterTests(unittest.TestCase):
                 ):
                     result = app.ask(ChatRequest("Find my reports", "chat"))
                 self.assertEqual(result.status, "complete", result.answer)
-                self.assertEqual(len(self.requests), 4)
+                self.assertEqual(len(self.requests), 3)
                 sleep.assert_called_once_with(1)
-                self.assertEqual(self.events("run_finished")[-1]["model_calls"], 4)
+                self.assertEqual(self.events("run_finished")[-1]["model_calls"], 3)
                 self.assertNotIn(
                     "private provider payload", (self.config.data_dir / "trace.jsonl").read_text()
                 )

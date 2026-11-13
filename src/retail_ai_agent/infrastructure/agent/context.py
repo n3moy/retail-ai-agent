@@ -26,7 +26,7 @@ class RunContext:
     schema: str = ""
     queries: list[QueryResult] = field(default_factory=list)
     empty_sql: set[str] = field(default_factory=set)
-    intent: str = ""
+    report_requested: bool = False
     observed_queries: int = 0
     brand_count: int | None = None
     brand_filtered: bool = False
@@ -36,12 +36,6 @@ class RunContext:
     # The runner executes model calls sequentially; retries reset this for each call.
     model_attempt: int = 0
     measured_input: InputTokenCount | None = None
-
-    @property
-    def may_publish(self) -> bool:
-        return self.request.action == "report" or (
-            self.request.action == "auto" and self.intent == "REPORT"
-        )
 
     def with_warnings(self, text: str) -> str:
         if not self.brand_filtered:
@@ -69,6 +63,7 @@ class RunContextFactory:
         return RunContext(
             run_id=run_id,
             request=request,
+            report_requested=request.action == "report",
             schema=self.schema,
             brand_count=self.brand_count,
             budget=Budget(

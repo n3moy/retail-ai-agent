@@ -24,8 +24,8 @@ class ReviewDecision(TypedDict):
 def publish_analysis(
     reports: ReportService, trace: JsonlTrace, context: RunContext, body: str
 ) -> str:
-    if not context.may_publish:
-        return "Report not saved. Give the analysis in chat. The employee can request /report."
+    if not context.report_requested:
+        return "Report not saved. Give the analysis in chat unless the user requested a new report."
     if context.report_id:
         return f"This request already saved report {context.report_id}."
     sql = [query.sql for query in context.queries[: context.observed_queries] if query.rows]

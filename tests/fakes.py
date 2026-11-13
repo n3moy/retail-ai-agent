@@ -1,4 +1,3 @@
-import json
 import sqlite3
 from dataclasses import replace
 
@@ -15,7 +14,6 @@ from sqlalchemy import create_engine
 from retail_ai_agent.application.access import allowed_brands
 from retail_ai_agent.application.models import QueryResult
 from retail_ai_agent.config import Config
-from retail_ai_agent.infrastructure.agent.middleware.intent import INTENT_PROMPT
 from retail_ai_agent.infrastructure.privacy import LocalSanitizer
 from retail_ai_agent.infrastructure.schema import MetadataSQLDatabase, SchemaCatalog
 from retail_ai_agent.infrastructure.sql import SafeSql
@@ -33,8 +31,6 @@ def gemini_config(**settings):
 
 class ScriptedModel(BaseChatModel):
     responses: list = Field(default_factory=list)
-    intent: str = "ANALYSIS"
-    policy_inputs: list[list[BaseMessage]] = Field(default_factory=list)
     seen: list[list[BaseMessage]] = Field(default_factory=list)
 
     @property
@@ -45,12 +41,8 @@ class ScriptedModel(BaseChatModel):
         return self
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
-        if INTENT_PROMPT in messages[0].text:
-            self.policy_inputs.append(list(messages))
-            response = AIMessage(content=json.dumps({"intent": self.intent}))
-        else:
-            self.seen.append(list(messages))
-            response = self.responses.pop(0)
+        self.seen.append(list(messages))
+        response = self.responses.pop(0)
         if isinstance(response, Exception):
             raise response
         if callable(response):
@@ -60,10 +52,11 @@ class ScriptedModel(BaseChatModel):
         return ChatResult(generations=[ChatGeneration(message=response)])
 
 
-def tool_call(sql, call_id="query"):
-    return AIMessage(
-        content="", tool_calls=[{"id": call_id, "name": "sql_db_query", "args": {"query": sql}}]
-    )
+def tool_call(sql, call_id="query", *, for_report=False):
+    args = {"query": sql}
+    if for_report:
+        args["for_report"] = True
+    return AIMessage(content="", tool_calls=[{"id": call_id, "name": "sql_db_query", "args": args}])
 
 
 def call(name, **args):

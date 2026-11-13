@@ -30,7 +30,7 @@ def create_middleware(
     Tool: trace -> safe error observations -> SQL policy and result masking.
     Settle reported usage before rejecting malformed responses. Unknown usage keeps its reserve.
     """
-    policy = ToolPolicyMiddleware(trace, sql, analytics, sanitizer)
+    policy = ToolPolicyMiddleware(trace, sql, analytics, sanitizer, config.report_timeout_seconds)
     return [
         SqlPlanningMiddleware(),
         ModelInputMiddleware(sanitizer),

@@ -84,7 +84,7 @@ class CliTests(unittest.TestCase):
     def test_steps_show_operations_on_redirected_stderr_only(self):
         def answer(request):
             for event in (
-                "classify",
+                "model",
                 "sql_db_query",
                 "query_error",
                 "private unknown tool",
@@ -100,7 +100,7 @@ class CliTests(unittest.TestCase):
 
         self.service.ask.side_effect = answer
         expected = [
-            "Checking the request",
+            "Preparing answer",
             "Checking SQL and access",
             "SQL needs correction",
             "Waiting before retrying the model",

@@ -33,11 +33,13 @@ class ToolPolicyMiddleware(AgentMiddleware[AgentState, RunContext]):
         sql: SafeSql,
         analytics: Analytics,
         sanitizer: LocalSanitizer,
+        report_timeout_seconds: float,
     ):
         self.trace = trace
         self.sql = sql
         self.analytics = analytics
         self.sanitizer = sanitizer
+        self.report_timeout_seconds = report_timeout_seconds
 
     def wrap_tool_call(
         self, request: ToolCallRequest, handler: Callable[[ToolCallRequest], ToolMessage | Command]
@@ -60,6 +62,11 @@ class ToolPolicyMiddleware(AgentMiddleware[AgentState, RunContext]):
         args = schema.model_validate(call["args"], strict=True, extra="forbid").model_dump()
         if call["name"] != "sql_db_query":
             return handler(request)
+
+        if context.request.action == "auto" and args.get("for_report"):
+            context.report_requested = True
+            # The deadline is measured from the original start of this turn.
+            context.budget.timeout = self.report_timeout_seconds
 
         # The toolkit's default executor cannot enforce our BigQuery job budget.
         prepared = self.sql.prepare(args["query"])

@@ -9,6 +9,7 @@ from langchain_community.tools.sql_database.tool import QuerySQLDatabaseTool
 from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph.state import CompiledStateGraph
+from pydantic import BaseModel, Field
 
 from retail_ai_agent.application.ports import Analytics
 from retail_ai_agent.application.reports import ReportService
@@ -16,7 +17,6 @@ from retail_ai_agent.config import Config
 from retail_ai_agent.infrastructure.agent.context import RunContext
 from retail_ai_agent.infrastructure.agent.middleware import create_middleware
 from retail_ai_agent.infrastructure.agent.middleware.history import HistoryMiddleware
-from retail_ai_agent.infrastructure.agent.middleware.intent import TurnIntentMiddleware
 from retail_ai_agent.infrastructure.agent.prompts import AGENT_PROMPT, REPORT_INSTRUCTION
 from retail_ai_agent.infrastructure.agent.report_tools import report_tools
 from retail_ai_agent.infrastructure.privacy import LocalSanitizer
@@ -24,6 +24,14 @@ from retail_ai_agent.infrastructure.sql import SafeSql
 from retail_ai_agent.infrastructure.tracing import JsonlTrace
 
 ChatGraph = CompiledStateGraph[AgentState[Any], RunContext, InputAgentState, OutputAgentState[Any]]
+
+
+class AnalysisQuery(BaseModel):
+    query: str = Field(description="One GoogleSQL SELECT against the schema in context.")
+    for_report: bool = Field(
+        default=False,
+        description="Set true when this query supports the user's explicit request to create or save a new report.",
+    )
 
 
 @dynamic_prompt
@@ -66,12 +74,12 @@ def create_chat_graph(
             QuerySQLDatabaseTool(
                 db=sql.catalog.database,
                 description="Execute one GoogleSQL SELECT against the schema in context.",
+                args_schema=AnalysisQuery,
             ),
             *report_tools(reports, sanitizer, trace),
         ],
         middleware=[
             _prompt,
-            TurnIntentMiddleware(config, trace),
             *create_middleware(config, sanitizer, trace, sql, analytics),
             HistoryMiddleware(config, reports, trace),
         ],

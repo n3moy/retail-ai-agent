@@ -54,9 +54,9 @@ class GraphTests(unittest.TestCase):
         self.store = FileReportStore(self.path / "reports")
         self.checkpointer = InMemorySaver()
 
-    def app(self, responses=(), actor=None, *, intent="ANALYSIS"):
+    def app(self, responses=(), actor=None):
         actor = actor or self.actor
-        model = ScriptedModel(responses=list(responses), intent=intent)
+        model = ScriptedModel(responses=list(responses))
         self.analytics = LocalAnalytics(actor)
         self.addCleanup(self.analytics.connection.close)
         self.reports = ReportService(self.store, actor)
@@ -85,11 +85,10 @@ class GraphTests(unittest.TestCase):
     def create_report(self):
         app, _ = self.app(
             [
-                tool_call(QUERY),
+                tool_call(QUERY, for_report=True),
                 call("save_report", body="Sales: 10"),
                 AIMessage(content="Sales: 10"),
             ],
-            intent="REPORT",
         )
         result = app.ask(ChatRequest("Create a sales report", "chat"))
         self.assertTrue(result.report_id, result.answer)
@@ -116,15 +115,15 @@ class GraphTests(unittest.TestCase):
         self.assertFalse(result.report_id)
         self.assertEqual(self.store.list("a"), [])
 
-    def test_natural_report_uses_report_deadline_after_classification(self):
+    def test_natural_report_uses_report_deadline_on_first_query(self):
         self.config.question_timeout_seconds = 5
         self.config.report_timeout_seconds = 30
-        app, _ = self.app([tool_call(QUERY), echo_result], intent="REPORT")
+        app, _ = self.app([tool_call(QUERY, for_report=True), echo_result])
         execute = self.analytics.execute
 
         def check_deadline(prepared, budget):
             self.assertEqual(budget.timeout, 30)
-            self.assertGreaterEqual(budget.model_calls, 2)
+            self.assertEqual(budget.model_calls, 1)
             self.assertLessEqual(budget.started, monotonic())
             return execute(prepared, budget)
 
@@ -132,15 +131,6 @@ class GraphTests(unittest.TestCase):
         response = app.ask(ChatRequest("Prepare a January sales report", "chat"))
         self.assertEqual(response.status, "complete", response.answer)
         self.assertEqual(len(self.analytics.calls), 1)
-
-    def test_unclassified_model_prose_is_never_displayed(self):
-        app, model = self.app(intent="A lighthouse shines upon the sea")
-        result = app.ask(ChatRequest("Write a poem about a lighthouse", "chat"))
-        self.assertEqual(result.status, "failed")
-        self.assertNotIn("lighthouse", result.answer)
-        self.assertEqual(model.seen, [])
-        self.assertEqual(self.analytics.calls, [])
-        self.assertEqual(self.store.list("a"), [])
 
     def test_empty_scalar_report_and_real_zero(self):
         query = "SELECT SUM(sale_price) AS total FROM order_items WHERE status='Complete'"
@@ -249,7 +239,7 @@ class GraphTests(unittest.TestCase):
         events = [json.loads(line) for line in trace.splitlines()]
         self.assertEqual(len([e for e in events if e["event"] == "tool_result"]), 3)
         self.assertEqual(events[-1]["sql_attempts"], 1)
-        self.assertEqual(events[-1]["model_calls"], 5)
+        self.assertEqual(events[-1]["model_calls"], 4)
 
         self.assertEqual(app.ask(ChatRequest("Thanks", "chat")).answer, "You're welcome!")
         self.assertEqual(app.runner.graph.get_state(config).values["todos"], [])
@@ -368,11 +358,10 @@ class GraphTests(unittest.TestCase):
     def test_context_schema_query_and_save_report(self):
         app, model = self.app(
             [
-                tool_call(QUERY),
+                tool_call(QUERY, for_report=True),
                 call("save_report", body="Sales: 10"),
                 AIMessage(content="Sales: 10"),
             ],
-            intent="REPORT",
         )
         result = app.ask(ChatRequest("Create a sales report", "chat"))
         self.assertEqual(result.status, "complete", result.answer)
@@ -398,11 +387,10 @@ class GraphTests(unittest.TestCase):
         query = "SELECT first_name AS contact, email AS address, id AS customer FROM users"
         app, model = self.app(
             [
-                tool_call(query),
+                tool_call(query, for_report=True),
                 call("save_report", body="Anonymized report"),
                 AIMessage(content="Done"),
             ],
-            intent="REPORT",
         )
         result = app.ask(ChatRequest("Create a customer report", "chat"))
         self.assertEqual(result.status, "complete", result.answer)
@@ -422,22 +410,13 @@ class GraphTests(unittest.TestCase):
             self.assertNotIn("Private", surface)
             self.assertNotIn("private@example.com", surface)
 
-    def test_schema_turn_uses_context_and_rejects_unadvertised_tool_call(self):
-        app, model = self.app(
-            [
-                AIMessage(content="orders, order_items, products, users"),
-                tool_call("SELECT table_name FROM information_schema.tables"),
-            ],
-            intent="SCHEMA",
-        )
-        with patch.object(
-            ScriptedModel, "bind_tools", side_effect=AssertionError("unexpected tools")
-        ):
-            result = app.ask(ChatRequest("Which tables are available?", "chat"))
-            rejected = app.ask(ChatRequest("Which columns are in orders?", "chat"))
+    def test_schema_question_can_be_answered_in_one_model_call(self):
+        self.config.max_model_calls = 1
+        app, model = self.app([AIMessage(content="orders, order_items, products, users")])
+        result = app.ask(ChatRequest("Which tables are available?", "chat"))
         self.assertEqual(result.status, "complete", result.answer)
         self.assertIn("order_items(", model.seen[0][0].text)
-        self.assertEqual(rejected.status, "failed")
+        self.assertEqual(len(model.seen), 1)
         self.assertEqual(self.analytics.calls, [])
         events = [json.loads(line) for line in (self.path / "trace.jsonl").read_text().splitlines()]
         self.assertFalse(any(e["event"] == "tool_call" for e in events))
@@ -457,8 +436,11 @@ class GraphTests(unittest.TestCase):
     def test_scoped_report_and_answer_each_render_one_filter_notice(self):
         draft = f"Revenue: 10. Compare categories.\n\n{BRAND_NOTICE}\n\n{BRAND_NOTICE}"
         app, model = self.app(
-            [tool_call(QUERY), call("save_report", body=draft), AIMessage(content=draft)],
-            intent="REPORT",
+            [
+                tool_call(QUERY, for_report=True),
+                call("save_report", body=draft),
+                AIMessage(content=draft),
+            ],
         )
         response = app.ask(ChatRequest("Prepare a sales report", "chat"))
         self.assertEqual(response.status, "complete", response.answer)
@@ -523,7 +505,6 @@ class GraphTests(unittest.TestCase):
         self.assertEqual(
             stages,
             [
-                "classify",
                 "model",
                 "sql_db_query",
                 "query_error",
@@ -547,12 +528,11 @@ class GraphTests(unittest.TestCase):
         empty = "SELECT sale_price FROM order_items WHERE sale_price < 0"
         app, model = self.app(
             [
-                tool_call(empty, "first"),
+                tool_call(empty, "first", for_report=True),
                 tool_call(empty, "check"),
                 call("save_report", body="No data."),
                 echo_result,
             ],
-            intent="REPORT",
         )
         result = app.ask(ChatRequest("Create a report on negative sales", "chat"))
         self.assertIn("not saved", result.answer)
@@ -571,13 +551,12 @@ class GraphTests(unittest.TestCase):
             [
                 call("write_todos", todos=plan),
                 call("show_report", report_id="old"),
-                tool_call(QUERY),
+                tool_call(QUERY, for_report=True),
                 call("delete_reports", report_id="old"),
                 call("list_reports"),
                 call("save_report", body="Updated sales: 10"),
                 AIMessage(content="I updated the report."),
             ],
-            intent="REPORT",
         )
         self.reports.save("old", "chat", "Old sales", [QUERY], "Sales: 9")
         preview = app.ask(ChatRequest("Check the old report, delete it and save a new one", "chat"))
@@ -608,19 +587,18 @@ class GraphTests(unittest.TestCase):
         self.assertIn("No reports found", observations[4].text)
         events = [json.loads(line) for line in (self.path / "trace.jsonl").read_text().splitlines()]
         self.assertEqual(len({event["run_id"] for event in events}), 1)
-        self.assertEqual(events[-1]["model_calls"], 8)
+        self.assertEqual(events[-1]["model_calls"], 7)
         self.assertEqual(events[-1]["sql_attempts"], 1)
 
     def test_failed_final_reply_reports_committed_changes(self):
         app, _ = self.app(
             [
-                tool_call(QUERY),
+                tool_call(QUERY, for_report=True),
                 call("save_report", body="Sales: 10"),
                 RuntimeError("offline"),
                 call("delete_reports", conversation_only=True),
                 RuntimeError("offline"),
             ],
-            intent="REPORT",
         )
         saved = app.ask(ChatRequest("Create a report", "chat"))
         self.assertEqual(saved.status, "failed")
@@ -634,7 +612,7 @@ class GraphTests(unittest.TestCase):
         self.assertIn("Reports deleted: 1", deleted.answer)
 
     def test_save_requires_results_already_seen_in_this_turn(self):
-        query_and_save = tool_call(QUERY)
+        query_and_save = tool_call(QUERY, for_report=True)
         query_and_save.tool_calls.extend(call("save_report", body="Premature report").tool_calls)
         app, model = self.app(
             [
@@ -643,7 +621,6 @@ class GraphTests(unittest.TestCase):
                 call("save_report", body="Previous turn"),
                 echo_result,
             ],
-            intent="REPORT",
         )
         for question in ("Create a report", "Save another report"):
             result = app.ask(ChatRequest(question, "chat"))
@@ -905,11 +882,10 @@ class GraphTests(unittest.TestCase):
         )
         app, model = self.app(
             [
-                tool_call(QUERY),
+                tool_call(QUERY, for_report=True),
                 call("save_report", body="Report for MEMBER-333333"),
                 AIMessage(content="Report for MEMBER-333333"),
             ],
-            intent="REPORT",
         )
         self.analytics.execute = Mock(return_value=QueryResult(QUERY, ({"note": "MEMBER-222222"},)))
         result = app.ask(ChatRequest("Report for MEMBER-111111", "chat"))
@@ -970,7 +946,7 @@ class GraphTests(unittest.TestCase):
         self.assertEqual(result.answer, "[REDACTED_EMAIL]")
 
     def test_shared_call_limit_includes_followup_after_tools(self):
-        self.config.max_model_calls = 2
+        self.config.max_model_calls = 1
         app, model = self.app([tool_call(QUERY), AIMessage(content="Must not run")])
         result = app.ask(ChatRequest("What were sales?", "chat"))
         self.assertEqual(result.status, "failed")
@@ -979,8 +955,8 @@ class GraphTests(unittest.TestCase):
         self.assertEqual(failure["error_type"], "BudgetExceeded")
         self.assertEqual(len(model.seen), 1)
 
-    def test_retrying_classification_does_not_label_generation_as_a_retry(self):
-        app, _ = self.app([AIMessage(content="Ready")])
+    def test_model_retry_does_not_label_the_next_step_as_a_retry(self):
+        app, _ = self.app([tool_call(QUERY), AIMessage(content="Sales: 10")])
         steps = []
         with (
             observe_progress(steps.append),
@@ -990,9 +966,9 @@ class GraphTests(unittest.TestCase):
             ),
             patch("langchain.agents.middleware.model_retry.time.sleep"),
         ):
-            response = app.ask(ChatRequest("Are you available?", "chat"))
-        self.assertEqual(response.answer, "Ready")
-        self.assertEqual(steps, ["classify", "backoff", "retry", "model"])
+            response = app.ask(ChatRequest("What were sales?", "chat"))
+        self.assertIn("Sales: 10", response.answer)
+        self.assertEqual(steps, ["model", "backoff", "retry", "sql_db_query", "model"])
 
     def test_transient_retry_is_bounded_and_shares_budget(self):
         app, model = self.app([TimeoutError("private@example.com"), AIMessage(content="Schema")])
@@ -1000,7 +976,7 @@ class GraphTests(unittest.TestCase):
             result = app.ask(ChatRequest("What data is there?", "chat"))
         self.assertEqual(result.answer, "Schema")
         events = [json.loads(line) for line in (self.path / "trace.jsonl").read_text().splitlines()]
-        self.assertEqual(events[-1]["model_calls"], 3)
+        self.assertEqual(events[-1]["model_calls"], 2)
         self.assertEqual(len(model.seen), 2)
         self.assertNotIn("private@example.com", str(events))
 
@@ -1034,13 +1010,16 @@ class GraphTests(unittest.TestCase):
         self.assertEqual(result.status, "failed")
         self.assertNotIn("Unverified", result.answer)
 
-    def test_report_command_cannot_bypass_off_topic_refusal(self):
+    def test_report_command_can_decline_in_one_call_without_publishing(self):
         answer = "I can help with retail analytics, sales questions and saved reports."
-        app, model = self.app([AIMessage(content="A poem about a lighthouse")], intent="UNRELATED")
+        self.config.max_model_calls = 1
+        app, model = self.app([AIMessage(content=answer)])
         self.analytics.execute = Mock()
         result = app.ask(ChatRequest("Write a poem", "chat", action="report"))
         self.assertEqual(result.answer, answer)
-        self.assertEqual(model.seen, [])
+        self.assertIn(REPORT_INSTRUCTION, model.seen[0][0].text)
+        self.assertIn("unrelated /report", model.seen[0][0].text)
+        self.assertEqual(self.store.list("a"), [])
         self.analytics.execute.assert_not_called()
 
     def test_natural_language_report_library_uses_tools_without_sql(self):
