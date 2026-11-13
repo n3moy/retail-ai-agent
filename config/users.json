@@ -1,0 +1,5 @@
+{
+  "manager_a": {"role": "manager", "brands": ["Calvin Klein"]},
+  "manager_b": {"role": "manager", "brands": ["Levi's", "Wrangler"]},
+  "ceo": {"role": "ceo", "brands": []}
+}

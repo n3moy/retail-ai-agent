@@ -151,6 +151,7 @@ activemq-data/
 
 # Environments
 .env
+.retail-agent/
 .envrc
 .venv
 env/

@@ -1,0 +1,192 @@
+{
+  "suite": "offline",
+  "passed": 31,
+  "cases": [
+    {
+      "id": "EH-01",
+      "scenario": "SQL syntax repair",
+      "test": "test_graph.GraphTests.test_syntax_error_and_empty_result_can_be_corrected_within_one_budget",
+      "status": "pass"
+    },
+    {
+      "id": "EH-02+11",
+      "scenario": "Stale user SQL, reflected schema and scoped repair",
+      "test": "test_graph.GraphTests.test_stale_user_query_is_corrected_against_schema_and_scoped_rows",
+      "status": "pass"
+    },
+    {
+      "id": "EH-03",
+      "scenario": "Stop repeated invalid SQL",
+      "test": "test_graph.GraphTests.test_repeated_invalid_candidates_exhaust_shared_sql_limit",
+      "status": "pass"
+    },
+    {
+      "id": "EH-04",
+      "scenario": "Empty SUM vs real zero, including publication",
+      "test": "test_graph.GraphTests.test_empty_scalar_report_and_real_zero",
+      "status": "pass"
+    },
+    {
+      "id": "EH-07",
+      "scenario": "429 during token counting and recovery",
+      "test": "test_middleware.MiddlewareTests.test_google_count_failure_does_not_reserve_or_generate_and_429_can_retry",
+      "status": "pass"
+    },
+    {
+      "id": "EH-08",
+      "scenario": "Persistent transient failure and bounded backoff",
+      "test": "test_middleware.MiddlewareTests.test_retry_exhaustion_is_bounded_and_does_not_release_reservations",
+      "status": "pass"
+    },
+    {
+      "id": "EH-09",
+      "scenario": "Malformed model call",
+      "test": "test_graph.GraphTests.test_malformed_tool_call_is_not_a_final_answer",
+      "status": "pass"
+    },
+    {
+      "id": "EH-10",
+      "scenario": "403 and unavailable warehouse",
+      "test": "test_runtime.RuntimeTests.test_permission_failure_and_outage_do_not_replay_a_paid_job_or_leak_details",
+      "status": "pass"
+    },
+    {
+      "id": "EH-12",
+      "scenario": "Sanitized warehouse diagnostics",
+      "test": "test_runtime.RuntimeTests.test_query_error_never_returns_raw_provider_payload",
+      "status": "pass"
+    },
+    {
+      "id": "EH-13",
+      "scenario": "Timeout with a submitted job",
+      "test": "test_runtime.RuntimeTests.test_timeout_attempts_cancellation_and_keeps_cost_reservation",
+      "status": "pass"
+    },
+    {
+      "id": "EH-14",
+      "scenario": "Scan limit before execution",
+      "test": "test_runtime.RuntimeTests.test_dry_run_scan_limit_prevents_execution",
+      "status": "pass"
+    },
+    {
+      "id": "EH-17",
+      "scenario": "Failed report publication and retry",
+      "test": "test_reports.ReportTests.test_failed_save_is_not_published_and_can_be_retried",
+      "status": "pass"
+    },
+    {
+      "id": "EH-18",
+      "scenario": "Lost deletion receipt and replay",
+      "test": "test_graph.GraphTests.test_failure_after_tool_commit_recovers_the_persisted_outcome",
+      "status": "pass"
+    },
+    {
+      "id": "EH-19",
+      "scenario": "Frozen snapshot and changed scope",
+      "test": "test_reports.ReportTests.test_confirmation_binds_owner_conversation_scope_and_exact_snapshot",
+      "status": "pass"
+    },
+    {
+      "id": "EH-21",
+      "scenario": "CLI accepts next question after error",
+      "test": "test_chat.ChatTests.test_cli_keeps_session_after_failure_and_can_start_a_new_one",
+      "status": "pass"
+    },
+    {
+      "id": "EH-22",
+      "scenario": "Gemini payloads, trace, report and history redacted",
+      "test": "test_gemini.GeminiAdapterTests.test_free_text_pii_is_absent_from_count_generation_and_final_answer",
+      "status": "pass"
+    },
+    {
+      "id": "save-intent",
+      "scenario": "Unsolicited save after real SQL rows",
+      "test": "test_graph.GraphTests.test_unrequested_report_tool_after_valid_rows_cannot_publish",
+      "status": "pass"
+    },
+    {
+      "id": "brand-grants",
+      "scenario": "Recommendation context for zero, one, multiple and unrestricted brands",
+      "test": "test_graph.GraphTests.test_grant_count_is_in_the_prompt_before_sql",
+      "status": "pass"
+    },
+    {
+      "id": "filter-notice",
+      "scenario": "One access notice in the answer and saved Markdown",
+      "test": "test_graph.GraphTests.test_scoped_report_and_answer_each_render_one_filter_notice",
+      "status": "pass"
+    },
+    {
+      "id": "cli-steps",
+      "scenario": "Observable steps on stderr in both CLI modes",
+      "test": "test_cli.CliTests.test_steps_show_operations_on_redirected_stderr_only",
+      "status": "pass"
+    },
+    {
+      "id": "schema-context",
+      "scenario": "Reflected tables and column types by role, including new tables",
+      "test": "test_schema.SchemaTests.test_context_exposes_reflected_schema_for_current_role_without_sample_rows",
+      "status": "pass"
+    },
+    {
+      "id": "null-report",
+      "scenario": "A NULL-only adapter row cannot publish a report",
+      "test": "test_graph.GraphTests.test_null_aggregate_observation_cannot_publish",
+      "status": "pass"
+    },
+    {
+      "id": "scope",
+      "scenario": "Unrelated /report, uncooperative generator",
+      "test": "test_graph.GraphTests.test_report_command_cannot_bypass_off_topic_refusal",
+      "status": "pass"
+    },
+    {
+      "id": "invalid-intent",
+      "scenario": "Classifier returns a poem",
+      "test": "test_graph.GraphTests.test_unclassified_model_prose_is_never_displayed",
+      "status": "pass"
+    },
+    {
+      "id": "report-request",
+      "scenario": "Requested report, evidence and scope",
+      "test": "test_graph.GraphTests.test_context_schema_query_and_save_report",
+      "status": "pass"
+    },
+    {
+      "id": "library",
+      "scenario": "Find reports and preview deletion in chat",
+      "test": "test_graph.GraphTests.test_natural_language_report_library_uses_tools_without_sql",
+      "status": "pass"
+    },
+    {
+      "id": "mention",
+      "scenario": "Delete a report by ID independently of text matches",
+      "test": "test_graph.GraphTests.test_delete_a_discussed_report_by_id_skips_reports_that_mention_it",
+      "status": "pass"
+    },
+    {
+      "id": "cancel",
+      "scenario": "Cancel a frozen preview",
+      "test": "test_graph.GraphTests.test_cancellation_and_snapshot_exclude_new_reports",
+      "status": "pass"
+    },
+    {
+      "id": "confirm",
+      "scenario": "Confirm and replay",
+      "test": "test_graph.GraphTests.test_delete_interrupt_can_be_confirmed_in_session_and_is_idempotent",
+      "status": "pass"
+    },
+    {
+      "id": "owner",
+      "scenario": "Another employee cannot access a report",
+      "test": "test_reports.ReportTests.test_ceo_cannot_read_or_delete_another_users_reports",
+      "status": "pass"
+    },
+    {
+      "id": "restart",
+      "scenario": "Report survives restart; stale confirmation expires",
+      "test": "test_graph.GraphTests.test_restart_discards_history_and_pending_pause_but_keeps_reports",
+      "status": "pass"
+    }
+  ]
+}

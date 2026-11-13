@@ -1,0 +1,240 @@
+{
+  "suite": "live",
+  "started": "2026-11-13T13:55:22.035728+00:00",
+  "cases": [
+    {
+      "id": "revenue",
+      "conversation": "sales",
+      "prompt": "For January 2024, what was total completed item revenue for my brands? Give the total in USD and the period.",
+      "answer": "Hi there! \n\nFor January 2024 (January 1, 2024, 00:00:00 UTC through January 31, 2024, 23:59:59 UTC), the total completed item revenue for your accessible brands was **$359.54** across 5 items (based on `order_items` with status `Complete`, using `created_at` timestamps). \n\n*(Note: An automatic brand filter has been applied to your accessible brands, so this revenue is scoped strictly to your portfolio.)*\n\nAn automatic filter has been applied to your accessible brands. Data from other brands is excluded from the analysis.",
+      "turn_status": "complete",
+      "trace": {
+        "run_id": "dc5c6962dc844410a803d2539d5712a1",
+        "latency_ms": 8654,
+        "model_calls": 4,
+        "sql_attempts": 1,
+        "estimated_usd": 0.003153
+      },
+      "sql_candidates": [
+        "\nSELECT \n  SUM(sale_price) AS total_revenue,\n  COUNT(id) AS item_count\nFROM order_items\nWHERE status = 'Complete'\n  AND created_at >= TIMESTAMP('2024-01-01 00:00:00')\n  AND created_at < TIMESTAMP('2024-02-01 00:00:00')\n"
+      ],
+      "completed_jobs": [
+        "483e3f32-b412-4a99-8dae-3bff41ff2249"
+      ],
+      "report_ids": [],
+      "checks": {
+        "turn status": true,
+        "traced": true,
+        "query completed": true,
+        "reference USD in answer": true,
+        "period in answer": true,
+        "library contents": true
+      },
+      "status": "pass"
+    },
+    {
+      "id": "follow-up",
+      "conversation": "sales",
+      "prompt": "In that same period and scope, how many distinct orders included those completed items? Give the order count.",
+      "answer": "This function is not available in the analytics schema.",
+      "turn_status": "failed",
+      "trace": {
+        "run_id": "a99c179c05a44167b4d2a904ccf5e9d7",
+        "latency_ms": 3700,
+        "model_calls": 3,
+        "sql_attempts": 1,
+        "estimated_usd": 0.002148
+      },
+      "sql_candidates": [
+        "\nSELECT\n  COUNT(DISTINCT [REDACTED_PERSON]) AS distinct_order_count\nFROM order_items\nWHERE status = 'Complete'\n  AND created_at >= TIMESTAMP('2024-01-01 00:00:00')\n  AND created_at < TIMESTAMP('2024-02-01 00:00:00')\n"
+      ],
+      "completed_jobs": [],
+      "report_ids": [],
+      "checks": {
+        "turn status": false,
+        "traced": true,
+        "query completed": false,
+        "reference order count in answer": false,
+        "library contents": true
+      },
+      "status": "fail"
+    },
+    {
+      "id": "empty",
+      "conversation": "empty",
+      "prompt": "How much completed item revenue did my brands have in January 2099 UTC? If there are no matching sales, say so and keep the dates.",
+      "answer": "Hello! \n\nFor January 2099 (UTC), your brands had **$0.00** in completed item revenue (`SUM(order_items.sale_price)` for `status='Complete'`, where `created_at` falls between `2099-01-01 00:00:00 UTC` and `2099-02-01 00:00:00 UTC`). \n\n*(Note: An automatic filter has been applied to your accessible brands; data from other brands is excluded.)*\n\nAn automatic filter has been applied to your accessible brands. Data from other brands is excluded from the analysis.",
+      "turn_status": "complete",
+      "trace": {
+        "run_id": "7aec0a5f4768401dacd3c70b2c3c5f93",
+        "latency_ms": 7258,
+        "model_calls": 4,
+        "sql_attempts": 1,
+        "estimated_usd": 0.00308
+      },
+      "sql_candidates": [
+        "SELECT SUM(sale_price) AS total_revenue FROM order_items WHERE status = 'Complete' AND created_at >= TIMESTAMP('2099-01-01 00:00:00 UTC') AND created_at < TIMESTAMP('2099-02-01 00:00:00 UTC')"
+      ],
+      "completed_jobs": [
+        "39346973-a2e6-4ed3-9d16-de9a57233d57"
+      ],
+      "report_ids": [],
+      "checks": {
+        "turn status": true,
+        "traced": true,
+        "query completed": true,
+        "empty period explained": false,
+        "library contents": true
+      },
+      "status": "fail"
+    },
+    {
+      "id": "report",
+      "conversation": "reports",
+      "prompt": "/report Summarize January 2024 completed item revenue in USD for my brands. Include one concrete next action.",
+      "answer": "Hello! Let's take a look at the January 2024 revenue for your accessible brands.\n\nFor completed items created between January 1, 2024, and January 31, 2024 (UTC), the total revenue is **$359.54** across **5 items**. *(Note: An automatic filter has been applied to include only your accessible brands.)*\n\n**Concrete next action:** We could break down this January revenue by product category or top-selling products to see which items drove this performance. Would you like me to run that category breakdown next?\n\nAn automatic filter has been applied to your accessible brands. Data from other brands is excluded from the analysis.\nReport saved: 1952fa1e06ce48eda6a219152cf52cd0",
+      "turn_status": "complete",
+      "trace": {
+        "run_id": "1952fa1e06ce48eda6a219152cf52cd0",
+        "latency_ms": 8474,
+        "model_calls": 4,
+        "sql_attempts": 1,
+        "estimated_usd": 0.003027
+      },
+      "sql_candidates": [
+        "\nSELECT\n  SUM(sale_price) AS total_revenue,\n  COUNT(id) AS item_count\nFROM `order_items`\nWHERE status = 'Complete'\n  AND created_at >= TIMESTAMP('2024-01-01 00:00:00')\n  AND created_at < TIMESTAMP('2024-02-01 00:00:00')\n"
+      ],
+      "completed_jobs": [
+        "4a80a09a-34a9-4260-93b0-82004c118119"
+      ],
+      "report_ids": [
+        "1952fa1e06ce48eda6a219152cf52cd0"
+      ],
+      "checks": {
+        "turn status": true,
+        "traced": true,
+        "saved question, SQL and receipt": true,
+        "reference USD in saved report": true,
+        "action language in saved report": true,
+        "library contents": true
+      },
+      "report_body": "Hello! Let's take a look at the January 2024 revenue for your accessible brands.\n\nFor completed items created between January 1, 2024, and January 31, 2024 (UTC), the total revenue is **$359.54** across **5 items**. *(Note: An automatic filter has been applied to include only your accessible brands.)*\n\n**Concrete next action:** We could break down this January revenue by product category or top-selling products to see which items drove this performance. Would you like me to run that category breakdown next?\n\nAn automatic filter has been applied to your accessible brands. Data from other brands is excluded from the analysis.",
+      "status": "pass"
+    },
+    {
+      "id": "preview",
+      "conversation": "reports",
+      "prompt": "/delete-conversation",
+      "answer": "The following reports will be deleted:\n1952fa1e06ce48eda6a219152cf52cd0 — Summarize January 2024 completed item revenue in USD for my brands. Include one concrete next action.",
+      "turn_status": "awaiting_confirmation",
+      "trace": {
+        "run_id": "43fc880785764aa08421f6e9aa9b095f",
+        "latency_ms": 1431,
+        "model_calls": 1,
+        "sql_attempts": 0,
+        "estimated_usd": 0.000594
+      },
+      "sql_candidates": [],
+      "completed_jobs": [],
+      "report_ids": [
+        "1952fa1e06ce48eda6a219152cf52cd0"
+      ],
+      "checks": {
+        "turn status": true,
+        "traced": true,
+        "exact pending snapshot": true,
+        "library contents": true
+      },
+      "status": "pass"
+    },
+    {
+      "id": "cancel",
+      "conversation": "reports",
+      "prompt": "/cancel 5673bc4f8698490b9d6fc05d6485ea1e",
+      "answer": "I've cancelled the deletion of the conversation reports, as requested. Let me know if you need anything else!",
+      "turn_status": "complete",
+      "trace": {
+        "run_id": "43fc880785764aa08421f6e9aa9b095f",
+        "latency_ms": 2551,
+        "model_calls": 2,
+        "sql_attempts": 0,
+        "estimated_usd": 0.001229
+      },
+      "sql_candidates": [],
+      "completed_jobs": [],
+      "report_ids": [
+        "1952fa1e06ce48eda6a219152cf52cd0"
+      ],
+      "checks": {
+        "turn status": true,
+        "traced": true,
+        "recorded cancellation": true,
+        "library contents": true
+      },
+      "receipt": "Deletion cancelled.",
+      "status": "pass"
+    },
+    {
+      "id": "schema",
+      "conversation": "schema",
+      "prompt": "Which four tables would I use for orders, line items, product details and customer demographics? Give the table names.",
+      "answer": "Hey there! For orders, line items, product details, and customer demographics, you'll want to use these four tables:\n\n1. **`orders`** (for order-level information)\n2. **`order_items`** (for line items)\n3. **`products`** (for product details)\n4. **`users`** (for customer demographics)",
+      "turn_status": "complete",
+      "trace": {
+        "run_id": "6da60acd7fb7466ebf0876af23fb6d61",
+        "latency_ms": 5822,
+        "model_calls": 4,
+        "sql_attempts": 0,
+        "estimated_usd": 0.012512
+      },
+      "sql_candidates": [],
+      "completed_jobs": [],
+      "report_ids": [
+        "1952fa1e06ce48eda6a219152cf52cd0"
+      ],
+      "checks": {
+        "turn status": true,
+        "traced": true,
+        "four table names": true,
+        "library contents": true
+      },
+      "status": "pass"
+    },
+    {
+      "id": "off-topic",
+      "conversation": "other",
+      "prompt": "Write a four-line poem about a lighthouse.",
+      "answer": "Upon the cliffs it stands so tall,\nA guiding light against the squall.\nThrough darkest night and crashing sea,\nIt calls the weary sailors free.",
+      "turn_status": "complete",
+      "trace": {
+        "run_id": "ad5fb1a9a2c447eaafd2830ee1f182d8",
+        "latency_ms": 1612,
+        "model_calls": 1,
+        "sql_attempts": 0,
+        "estimated_usd": 0.000574
+      },
+      "sql_candidates": [],
+      "completed_jobs": [],
+      "report_ids": [
+        "1952fa1e06ce48eda6a219152cf52cd0"
+      ],
+      "checks": {
+        "turn status": true,
+        "traced": true,
+        "analytics redirection": false,
+        "no tool calls": true,
+        "library contents": true
+      },
+      "status": "fail"
+    }
+  ],
+  "model": "gemini-3.5-flash-lite",
+  "dataset": "bigquery-public-data.thelook_ecommerce",
+  "user": "manager_a",
+  "reference": {
+    "jan_orders": 5,
+    "jan_revenue": 359.54,
+    "future_items": 0
+  },
+  "reference_job_id": "e339d5b9-697a-428e-837e-b8c7c0ad6872"
+}
