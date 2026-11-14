@@ -24,13 +24,17 @@ The [docs/](docs/) directory describes the production-ready architecture. Start 
 
 ### Setup
 
-Run the commands from the repository root with `uv`.
+On a fresh clone, run these commands from the repository root.
 
-1. Create `.env`.
-2. In `.env`, set `GOOGLE_AI_STUDIO_API_KEY` and `GEMINI_MODEL`. The example uses `gemini-3.5-flash-lite`. Set `GOOGLE_CLOUD_PROJECT` to a project with the BigQuery API enabled.
-3. Run `gcloud auth application-default login` with an account that can create BigQuery jobs in that project.
+```sh
+uv sync
+cp .env.example .env
+```
 
-On the first `uv run --locked`, uv sets up a Python 3.14 environment in `.venv` and installs the project dependencies.
+`uv sync` creates a local `uv.lock` and installs the dependencies in a Python 3.14 environment under `.venv`. The `uv run --locked` commands below use that lockfile.
+
+In `.env`, set `GOOGLE_AI_STUDIO_API_KEY` and `GEMINI_MODEL`. The example uses `gemini-3.5-flash-lite`. Set `GOOGLE_CLOUD_PROJECT` to a project with the BigQuery API enabled.
+Run `gcloud auth application-default login` with an account that can create BigQuery jobs in that project.
 
 ### Start an interactive chat
 
@@ -109,4 +113,4 @@ Ask “Delete reports mentioning Client X” or use `/delete-conversation` to pr
 
 Saved reports survive restarts. By default, `.retail-agent/reports/` holds the Markdown files and their `index.json`.
 
-[Report prompts](src/retail_ai_agent/infrastructure/agent/prompts.py) · [Production architecture](docs/HLD.md) · [Saved reports design](docs/reports.md) · [Original assignment](task-description.md)
+[Report prompts](src/retail_ai_agent/infrastructure/agent/prompts.py) · [Production architecture](docs/HLD.md) · [Saved reports design](docs/reports.md)
