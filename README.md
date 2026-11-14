@@ -8,8 +8,7 @@ Questions and `/report` go straight to one ReAct agent. On the first model call,
 
 ```mermaid
 flowchart TD
-    Q["CLI question or /report"] --> P["Redact personal data locally"]
-    P --> A["ReAct agent · Gemini"]
+    Q["CLI question or /report"] --> A["ReAct agent · Gemini"]
     A -->|SQL| B["SafeSql enforces brand access<br/>BigQuery dry-runs and executes"]
     B -->|Masked rows or query error| A
     A -->|Report action| T["Local report tools"]
