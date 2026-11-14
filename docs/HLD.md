@@ -18,9 +18,9 @@ A brand manager can ask why March sales fell, compare February and March, and sa
 
 ## Architecture
 
-The internal ingress terminates TLS and forwards requests to a ClusterIP Service. The Service routes to one of two ready API pods. Each runs the FastAPI gateway, employee chat and persona editor, `ContextBuilder`, agent loop and tool handlers in the same Python application. The application calls Gemini Flash through the Gemini API. LangGraph checkpoints the conversation so either pod can resume a turn paused for a deletion decision.
+The internal ingress terminates TLS and forwards requests to a ClusterIP Service. The Service routes to one of two ready API pods. Each runs the FastAPI gateway, employee chat and persona editor, `ContextBuilder`, agent loop and tool handlers in the same Python application. Gemini Flash proposes tool calls and writes the employee’s answer. LangGraph checkpoints the conversation so either pod can resume a turn paused for a deletion decision.
 
-For each new chat message, the API first calls the **Gemini Decision Model**. This is a tool-free call to the same Gemini Flash model used by the agent. It sees the masked question and enough authorized history to interpret a follow-up such as “save that as a report.” The API validates the returned intent and uses it to choose the next step. Classification counts toward the turn’s time, model-call and cost limits.
+The gateway routes each new chat message with the **Gemini Decision Model** (`gemini-decision-1`). It sends the masked question and recent authorized history to the Gemini Decisions API with one `choice` question. The four options are `SCHEMA`, `ANALYSIS`, `REPORT` and `UNRELATED`. For example, the history lets the classifier interpret “save that as a report.” The API returns the selected option, its confidence and the probabilities for all four options. The gateway validates the choice before dispatch and counts the call against the turn’s time, model-call and cost limits. [Google’s Decisions API guide](https://aistudio.google.com/docs/decisions-api#choice)
 
 New capabilities plug into the same ReAct loop. Developers register a typed LangChain tool and its handler. Gemini can then choose the tool, use its result to call another tool, or answer the employee. As the catalog grows, a tool selection step before the loop will choose the tools relevant to the request from those available to the employee. [Adding a tool](scalability.md#adding-a-tool)
 
@@ -33,8 +33,8 @@ flowchart TD
     App["Employee application"] --> Gateway["Gateway · identity, brand grants, turn policy"]
     Memory["LangGraph checkpointer and Store"] -->|Recent history within current grants| Gateway
     Gateway <-->|Redact question and recent history| PII["Private PII service · Presidio and spaCy"]
-    Gateway -->|Masked question and history| Decision["Gemini Decision Model · intent classification"]
-    Decision -->|Structured intent| Route{"API validates intent"}
+    Gateway -->|Masked question and history| Decision["Gemini Decision Model · gemini-decision-1"]
+    Decision -->|Intent choice| Route{"API validates intent"}
     Route -->|UNRELATED · explain supported tasks| App
     Route -->|Invalid decision · ask to rephrase| App
     Route -->|SCHEMA · masked schema context, tools disabled| Agent["Gemini Flash · LangChain and LangGraph"]
@@ -69,7 +69,7 @@ flowchart TD
 | --- | --- |
 | Gateway and LangGraph checkpointer | The gateway resolves current corporate identity and brand grants. The PostgreSQL checkpointer keeps conversation state, evidence and report references, and pending actions. Reads recheck access. |
 | LangGraph Store and persona editor | The Store holds each employee’s preferences in PostgreSQL, including how they define measures in their own analyses. The editor publishes the active report style. `ContextBuilder` reads both when a turn starts. |
-| SQL tool handler | A Python function behind `execute_analysis_sql(sql)` in each API pod. It checks the proposed SQL, applies brand scope before aggregation, dry-runs it for cost, then executes it under a scoped warehouse identity. It records the released rows, query ID and metric definition so a reported figure can be traced to its source. [Warehouse access](security.md#identity-and-brand-access) |
+| SQL tool handler | A Python function behind `execute_analysis_sql(sql)` in each API pod. It checks the proposed SQL against the turn’s metric rules where defined, applies brand scope before aggregation, dry-runs it for cost, then executes it under a scoped warehouse identity. It records the released rows, query ID and metric definition so a reported figure can be traced to its source. [Active-customer example](agent-runtime.md#checking-an-active-customer-count) · [Warehouse access](security.md#identity-and-brand-access) |
 | Golden Retriever and publication worker | Each approved case in the private S3-compatible Golden Bucket includes the analyst’s definition alongside the question, SQL and report. The worker indexes the revision in PostgreSQL. The retriever selects eligible examples by brand, metric and schema compatibility. |
 | Reports Service | On an explicit save, the service rechecks brand access and commits the redacted Markdown, SQL and evidence references, and a receipt in PostgreSQL. Deletion uses a separate plan containing the exact IDs the employee confirms. |
 | Private PII service | Returns masked text to the caller. The SQL tool handler enforces column and cohort rules before releasing BigQuery results. [PII service and result filtering](security.md#private-pii-service) |
